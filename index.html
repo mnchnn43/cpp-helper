@@ -17,6 +17,8 @@
       };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Babel for client-side transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;800&display=swap');
       body {
@@ -91,8 +93,8 @@
             <div class="loader"></div>
             <h2 class="text-lg text-slate-300 font-semibold">시스템 초기화 중...</h2>
             <p class="text-sm text-slate-500 max-w-md">
-              필수 라이브러리를 불러오고 있습니다.<br>
-              잠시만 기다려주세요.
+              앱을 구성하고 있습니다.<br>
+              소스 코드를 컴파일하는 중입니다.
             </p>
             
             <noscript>
@@ -103,7 +105,7 @@
             </noscript>
 
             <!-- Error container (hidden by default) -->
-            <div id="global-error-msg" class="hidden mt-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-200 text-left w-full">
+            <div id="global-error-msg" class="hidden mt-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-200 text-left w-full break-all">
               <p class="font-bold mb-1">초기화 오류</p>
               <p id="global-error-text" class="text-sm font-mono opacity-90"></p>
             </div>
@@ -112,32 +114,81 @@
       </div>
     </div>
 
-    <!-- Global Error Handler -->
-    <script>
-      // Capture errors that don't bubble (like script loading errors)
-      window.addEventListener('error', function(event) {
-        const root = document.getElementById('root');
-        // If React hasn't taken over yet (still showing loader logic)
-        if (document.querySelector('.loader')) {
+    <!-- Client-side Bundle Loader -->
+    <script type="module">
+      async function loadSource(path) {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status} ${response.statusText}`);
+        return await response.text();
+      }
+
+      async function init() {
+        try {
+          // Master Import Block: Explicitly import all external dependencies used across files.
+          // This avoids "Identifier 'React' has already been declared" errors caused by multiple imports in a concatenated file.
+          let combinedSource = `
+            import React, { useState, useEffect, useRef } from 'react';
+            import ReactDOM from 'react-dom/client';
+            import { GoogleGenAI, Type, Schema } from "@google/genai";
+            import { Loader2, AlertCircle, CheckCircle, XCircle, BookOpen, RotateCcw, Trash2, ArrowRight, Zap, Search, Filter, Settings, Key, Download, Upload, User, Info, Check, Menu } from 'lucide-react';
+          `;
+
+          // Dependency Order: Types -> Components -> Services -> App -> Entry
+          const files = [
+            './types.ts',
+            './components/CodeBlock.tsx',
+            './services/geminiService.ts', 
+            './App.tsx',
+            './index.tsx'
+          ];
+
+          for (const file of files) {
+            let source = await loadSource(file);
+            
+            // 1. Remove ALL import statements. 
+            // We rely on the Master Import Block for externals, and concatenation for internals.
+            source = source.replace(/import\s+[\s\S]*?from\s+['"].*?['"];?/g, '');
+            
+            // 2. Remove 'export default' but keep the declaration
+            source = source.replace(/export\s+default\s+/g, '');
+
+            // 3. Remove 'export' modifier from declarations to merge scopes
+            source = source.replace(/export\s+(const|function|class|interface|type|enum)/g, '$1');
+            
+            // 4. Remove named export statements (e.g. export { Foo };)
+            source = source.replace(/export\s+\{.*?\};?/g, '');
+
+            combinedSource += `\n/* FILE: ${file} */\n` + source + "\n";
+          }
+
+          // 5. Transpile using Babel Standalone
+          const output = Babel.transform(combinedSource, {
+            presets: ['react', 'typescript'],
+            filename: 'bundle.tsx',
+            plugins: []
+          }).code;
+
+          // 6. Execute as a Module
+          const blob = new Blob([output], { type: 'text/javascript' });
+          const url = URL.createObjectURL(blob);
+          
+          await import(url);
+          
+          // Cleanup
+          URL.revokeObjectURL(url);
+          
+        } catch (e) {
+          console.error(e);
           const errorContainer = document.getElementById('global-error-msg');
           const errorText = document.getElementById('global-error-text');
-          
           if (errorContainer && errorText) {
             errorContainer.classList.remove('hidden');
-            
-            let message = event.message;
-            // Provide more helpful message for script loading errors (often MIME type or 404)
-            if (event.target && (event.target.tagName === 'SCRIPT' || event.target.tagName === 'LINK')) {
-              message = `리소스를 불러올 수 없습니다: ${event.target.src || event.target.href}. (MIME type 오류 또는 파일 경로 확인 필요)`;
-            }
-            
-            errorText.innerText = message || '알 수 없는 오류가 발생했습니다.';
+            errorText.innerText = `앱 로딩 실패:\n${e.message}\n\n(자세한 내용은 브라우저 콘솔을 확인하세요)`;
           }
         }
-      }, true); // Use capture phase
-    </script>
+      }
 
-    <!-- Main Entry Point -->
-    <script type="module" src="./index.tsx"></script>
+      init();
+    </script>
   </body>
 </html>
