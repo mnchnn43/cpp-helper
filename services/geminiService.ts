@@ -86,6 +86,9 @@ const stripComments = (code: string): string => {
 // Helper for delay
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper to generate unique ID
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+
 // Helper to validate API Key format (Starts with AIza and is approx 39 chars)
 const isValidApiKeyFormat = (key: string): boolean => {
   // Regex: Starts with AIza, followed by alphanumeric/dashes/underscores, approx length check
@@ -206,6 +209,9 @@ export const generateQuestion = async (apiKey: string, selectedTopics: string[] 
       parsed.code = stripComments(parsed.code);
     }
     
+    // Assign unique ID
+    parsed.id = generateId();
+
     return parsed as CppQuestion;
   } catch (error) {
     console.error("GenAI Error:", error);
@@ -252,6 +258,7 @@ export const generateBlankQuestion = async (apiKey: string, selectedTopics: stri
     
     // Map to CppQuestion structure
     return {
+      id: generateId(), // Assign unique ID
       code: "", // No code for concept questions
       questionText: parsed.questionText,
       type: "concept_blank",

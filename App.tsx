@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { generateQuestion, generateBlankQuestion, evaluateAnswer, validateApiKey } from './services/geminiService.ts';
 import { CppQuestion, EvaluationResult, SavedMistake, CPP_TOPICS } from './types.ts';
 import { CodeBlock } from './components/CodeBlock.tsx';
-import { Loader2, AlertCircle, CheckCircle, XCircle, BookOpen, RotateCcw, Trash2, ArrowRight, Zap, Search, Filter, Settings, Key, Download, Upload, User, Info, Check, Menu, BrainCircuit } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, XCircle, BookOpen, RotateCcw, Trash2, ArrowRight, Zap, Search, Filter, Settings, Key, Download, Upload, User, Info, Check, Menu, BrainCircuit, Bookmark } from 'lucide-react';
 
 enum AppMode {
   MENU,
@@ -126,9 +126,15 @@ const App: React.FC = () => {
   };
 
   const saveMistake = (question: CppQuestion, answer: string, feedback: string) => {
+    // If the question already has an ID, use it. Otherwise, generate one (for backward compat).
+    const idToUse = question.id || Date.now().toString();
+    
+    // Check if already exists to prevent duplicates
+    if (mistakes.some(m => m.id === idToUse)) return;
+
     const newMistake: SavedMistake = {
       ...question,
-      id: Date.now().toString(),
+      id: idToUse,
       userWrongAnswer: answer,
       feedback: feedback,
       timestamp: Date.now(),
@@ -142,6 +148,22 @@ const App: React.FC = () => {
     const updated = mistakes.filter(m => m.id !== id);
     setMistakes(updated);
     localStorage.setItem('cpp_mistakes', JSON.stringify(updated));
+  };
+
+  // Toggle Bookmark Logic
+  const handleToggleBookmark = () => {
+    if (!currentQuestion) return;
+    
+    const isBookmarked = mistakes.some(m => m.id === currentQuestion.id);
+
+    if (isBookmarked) {
+      removeMistake(currentQuestion.id);
+    } else {
+      // If saving before evaluation, use placeholders.
+      const feedback = evaluation ? evaluation.feedback : "문제 풀이 전 저장되었습니다.";
+      const answer = evaluation ? userAnswer : "(풀이 안함)";
+      saveMistake(currentQuestion, answer, feedback);
+    }
   };
 
   const checkKey = () => {
@@ -210,6 +232,7 @@ const App: React.FC = () => {
     try {
       const result = await evaluateAnswer(apiKey, currentQuestion, userAnswer);
       setEvaluation(result);
+      // Auto-save mistake only if incorrect and NOT already saved/bookmarked
       if (!result.isCorrect) {
         saveMistake(currentQuestion, userAnswer, result.feedback);
       }
@@ -384,11 +407,24 @@ const App: React.FC = () => {
                 </div>
               ) : currentQuestion ? (
                 <>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
                     <span className="inline-block w-fit px-2 py-1 rounded bg-slate-800 text-slate-400 text-xs font-mono">
                       {currentQuestion.topic}
                     </span>
-                    
+                    <button
+                      onClick={handleToggleBookmark}
+                      className="text-slate-400 hover:text-yellow-400 transition-colors p-1"
+                      title="오답노트(북마크)에 저장/삭제"
+                    >
+                       {mistakes.some(m => m.id === currentQuestion.id) ? (
+                         <Bookmark className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+                       ) : (
+                         <Bookmark className="w-6 h-6" />
+                       )}
+                    </button>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
                     {/* Render different style based on question type */}
                     {currentQuestion.type === 'concept_blank' ? (
                        <div className="bg-slate-900 p-6 md:p-8 rounded-xl border border-slate-800 shadow-inner">

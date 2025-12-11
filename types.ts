@@ -2,6 +2,7 @@
 export type QuestionType = 'validity' | 'output' | 'concept' | 'concept_blank';
 
 export interface CppQuestion {
+  id: string;
   code: string;
   questionText: string;
   type: QuestionType;
@@ -16,7 +17,7 @@ export interface EvaluationResult {
 }
 
 export interface SavedMistake extends CppQuestion {
-  id: string;
+  id: string; // Inherited from CppQuestion, effectively guarantees it exists
   userWrongAnswer: string;
   feedback: string;
   timestamp: number;
