@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { CppQuestion, EvaluationResult, CPP_TOPICS } from "../types";
+import { CppQuestion, EvaluationResult, CPP_TOPICS } from "../types.ts";
 
 const MODEL_NAME = "gemini-2.5-flash";
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateQuestion, evaluateAnswer, validateApiKey } from './services/geminiService';
-import { CppQuestion, EvaluationResult, SavedMistake, CPP_TOPICS } from './types';
-import { CodeBlock } from './components/CodeBlock';
+import { generateQuestion, evaluateAnswer, validateApiKey } from './services/geminiService.ts';
+import { CppQuestion, EvaluationResult, SavedMistake, CPP_TOPICS } from './types.ts';
+import { CodeBlock } from './components/CodeBlock.tsx';
 import { Loader2, AlertCircle, CheckCircle, XCircle, BookOpen, RotateCcw, Trash2, ArrowRight, Zap, Search, Filter, Settings, Key, Download, Upload, User, Info, Check, Menu } from 'lucide-react';
 
 enum AppMode {
