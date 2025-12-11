@@ -62,6 +62,13 @@ const stripComments = (code: string): string => {
 // Helper for delay
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper to validate API Key format (Starts with AIza and is approx 39 chars)
+const isValidApiKeyFormat = (key: string): boolean => {
+  // Regex: Starts with AIza, followed by alphanumeric/dashes/underscores, approx length check
+  const apiKeyRegex = /^AIza[0-9A-Za-z-_]{30,40}$/;
+  return apiKeyRegex.test(key);
+};
+
 // Wrapper to handle Rate Limits (429) automatically
 async function generateContentWithRetry(model: any, params: any, retries = 3, delay = 2000): Promise<any> {
   try {
@@ -83,12 +90,21 @@ async function generateContentWithRetry(model: any, params: any, retries = 3, de
 
 export const validateApiKey = async (apiKey: string): Promise<boolean> => {
   if (!apiKey) return false;
+  if (!isValidApiKeyFormat(apiKey)) {
+    console.warn("API Key validation failed: Invalid format.");
+    return false;
+  }
+
   try {
     const ai = new GoogleGenAI({ apiKey });
-    // Try a very cheap operation to verify the key
-    await ai.models.countTokens({
+    // Use generateContent with minimal tokens to verify key and model access
+    // countTokens can sometimes 404 on new models or specific endpoints, generateContent is most reliable check
+    await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: "Test",
+      contents: { parts: [{ text: "Test" }] },
+      config: {
+        maxOutputTokens: 1,
+      }
     });
     return true;
   } catch (error) {
@@ -99,6 +115,7 @@ export const validateApiKey = async (apiKey: string): Promise<boolean> => {
 
 export const generateQuestion = async (apiKey: string, selectedTopics: string[] = []): Promise<CppQuestion> => {
   if (!apiKey) throw new Error("API Key is missing");
+  if (!isValidApiKeyFormat(apiKey)) throw new Error("API Key format is invalid (Must start with 'AIza')");
   
   // Explicitly log usage to ensure we are using the passed key (debug purpose)
   console.log(`Generating question with Key starting with: ${apiKey.substring(0, 4)}...`);
@@ -177,6 +194,8 @@ export const evaluateAnswer = async (
   userAnswer: string
 ): Promise<EvaluationResult> => {
   if (!apiKey) throw new Error("API Key is missing");
+  if (!isValidApiKeyFormat(apiKey)) throw new Error("API Key format is invalid");
+  
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `
