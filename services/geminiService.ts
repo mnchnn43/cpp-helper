@@ -32,6 +32,30 @@ const questionSchema: Schema = {
   required: ["code", "questionText", "type", "topic", "difficulty"],
 };
 
+const blankQuestionSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    questionText: {
+      type: Type.STRING,
+      description: "A C++ conceptual sentence in Korean with a critical keyword replaced by blank indicated by '[       ]'. Example: '함수 템플릿의 static 변수는 템플릿 함수별로 [       ]이다.'",
+    },
+    answer: {
+      type: Type.STRING,
+      description: "The correct keyword or phrase for the blank in Korean.",
+    },
+    topic: {
+      type: Type.STRING,
+      description: "The specific C++ topic.",
+    },
+    difficulty: {
+      type: Type.STRING,
+      enum: ["Beginner", "Intermediate", "Advanced"],
+      description: "Estimated difficulty level.",
+    }
+  },
+  required: ["questionText", "answer", "topic", "difficulty"],
+};
+
 const evaluationSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -116,8 +140,7 @@ export const generateQuestion = async (apiKey: string, selectedTopics: string[] 
   if (!apiKey) throw new Error("API Key is missing");
   if (!isValidApiKeyFormat(apiKey)) throw new Error("API Key format is invalid (Must start with 'AIza')");
   
-  // Explicitly log usage to ensure we are using the passed key (debug purpose)
-  console.log(`Generating question with Key starting with: ${apiKey.substring(0, 4)}...`);
+  console.log(`Generating code question...`);
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -171,7 +194,7 @@ export const generateQuestion = async (apiKey: string, selectedTopics: string[] 
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: questionSchema,
-        temperature: 1.2, // Higher creativity for varied code scenarios
+        temperature: 1.2,
       },
     });
 
@@ -179,8 +202,6 @@ export const generateQuestion = async (apiKey: string, selectedTopics: string[] 
     if (!text) throw new Error("No text returned from Gemini API");
 
     const parsed = JSON.parse(text);
-    
-    // Ensure comments are stripped and code is clean
     if (parsed.code) {
       parsed.code = stripComments(parsed.code);
     }
@@ -192,25 +213,92 @@ export const generateQuestion = async (apiKey: string, selectedTopics: string[] 
   }
 };
 
+export const generateBlankQuestion = async (apiKey: string, selectedTopics: string[] = []): Promise<CppQuestion> => {
+  if (!apiKey) throw new Error("API Key is missing");
+  const ai = new GoogleGenAI({ apiKey });
+
+  const topicsPool = selectedTopics.length > 0 ? selectedTopics : CPP_TOPICS;
+  const randomTopic = topicsPool[Math.floor(Math.random() * topicsPool.length)];
+
+  const systemInstruction = `
+    당신은 C++ 교수입니다. 학생들의 기본 개념을 확인하기 위해 '빈칸 채우기' 문제를 출제합니다.
+    
+    현재 주제: ${randomTopic}
+    
+    규칙:
+    1. C++의 핵심 개념, 키워드, 혹은 특징을 설명하는 문장을 하나 작성하십시오.
+    2. 그 문장에서 가장 중요한 **키워드(단어)** 하나를 골라 '[       ]' (빈칸)으로 대체하십시오.
+    3. 정답은 명확한 단어(명사, 동사, 예약어 등)여야 합니다.
+    4. 문장은 한국어로 작성하십시오.
+    5. 예시: "함수 템플릿의 static 변수는 템플릿 함수별로 [       ]이다." (정답: 독립적/별개)
+  `;
+
+  try {
+    const result = await generateContentWithRetry(ai.models, {
+      model: MODEL_NAME,
+      contents: { parts: [{ text: "Generate a fill-in-the-blank concept question." }] },
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: blankQuestionSchema,
+        temperature: 1.0,
+      },
+    });
+
+    const text = result.text;
+    if (!text) throw new Error("No text returned from Gemini API");
+
+    const parsed = JSON.parse(text);
+    
+    // Map to CppQuestion structure
+    return {
+      code: "", // No code for concept questions
+      questionText: parsed.questionText,
+      type: "concept_blank",
+      topic: parsed.topic,
+      difficulty: parsed.difficulty
+    } as CppQuestion;
+
+  } catch (error) {
+    console.error("GenAI Error:", error);
+    throw error;
+  }
+};
+
 export const evaluateAnswer = async (apiKey: string, question: CppQuestion, userAnswer: string): Promise<EvaluationResult> => {
   if (!apiKey) throw new Error("API Key is missing");
   const ai = new GoogleGenAI({ apiKey });
 
-  const prompt = `
-    Question Code:
-    ${question.code}
+  const isBlankQuestion = question.type === 'concept_blank';
 
-    Question:
-    ${question.questionText}
+  const prompt = isBlankQuestion 
+    ? `
+      Question:
+      ${question.questionText}
 
-    User's Answer:
-    ${userAnswer}
+      User's Answer (Fill in the blank):
+      ${userAnswer}
 
-    Evaluate the user's answer. 
-    1. Determine if the user correctly identified the validity (valid/invalid), the output (if valid), or the core concept.
-    2. Provide detailed feedback in Korean explaining the logic, why it compiles or doesn't, and any caveats (UB, memory leaks, etc.).
-    3. Provide the definitive Correct Answer.
-  `;
+      Evaluate the user's answer.
+      1. Determine if the user's word fits the blank conceptually. Synonyms are acceptable (e.g., "Independent" vs "Separate").
+      2. Provide feedback in Korean explanation the concept.
+      3. Provide the definitive Correct Answer word.
+    `
+    : `
+      Question Code:
+      ${question.code}
+
+      Question:
+      ${question.questionText}
+
+      User's Answer:
+      ${userAnswer}
+
+      Evaluate the user's answer. 
+      1. Determine if the user correctly identified the validity (valid/invalid), the output (if valid), or the core concept.
+      2. Provide detailed feedback in Korean explaining the logic, why it compiles or doesn't, and any caveats (UB, memory leaks, etc.).
+      3. Provide the definitive Correct Answer.
+    `;
 
   try {
     const result = await generateContentWithRetry(ai.models, {

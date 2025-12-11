@@ -1,5 +1,5 @@
 
-export type QuestionType = 'validity' | 'output' | 'concept';
+export type QuestionType = 'validity' | 'output' | 'concept' | 'concept_blank';
 
 export interface CppQuestion {
   code: string;

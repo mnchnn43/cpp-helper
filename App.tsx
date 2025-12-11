@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateQuestion, evaluateAnswer, validateApiKey } from './services/geminiService.ts';
+import { generateQuestion, generateBlankQuestion, evaluateAnswer, validateApiKey } from './services/geminiService.ts';
 import { CppQuestion, EvaluationResult, SavedMistake, CPP_TOPICS } from './types.ts';
 import { CodeBlock } from './components/CodeBlock.tsx';
-import { Loader2, AlertCircle, CheckCircle, XCircle, BookOpen, RotateCcw, Trash2, ArrowRight, Zap, Search, Filter, Settings, Key, Download, Upload, User, Info, Check, Menu } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, XCircle, BookOpen, RotateCcw, Trash2, ArrowRight, Zap, Search, Filter, Settings, Key, Download, Upload, User, Info, Check, Menu, BrainCircuit } from 'lucide-react';
 
 enum AppMode {
   MENU,
-  PRACTICE,
+  PRACTICE,       // Code-based practice
+  CONCEPT_PRACTICE, // Fill-in-the-blank concept practice
   REVIEW,
 }
 
@@ -143,21 +144,32 @@ const App: React.FC = () => {
     localStorage.setItem('cpp_mistakes', JSON.stringify(updated));
   };
 
-  const handleStartPractice = () => {
+  const checkKey = () => {
     if (!apiKey) {
       setShowSettings(true);
-      return;
+      return false;
     }
     if (!apiKey.startsWith("AIza")) {
       alert("API Key 형식이 올바르지 않습니다. 설정을 확인해주세요.");
       setShowSettings(true);
-      return;
+      return false;
     }
-    setMode(AppMode.PRACTICE);
-    fetchNewQuestion();
+    return true;
   };
 
-  const fetchNewQuestion = async () => {
+  const handleStartPractice = () => {
+    if (!checkKey()) return;
+    setMode(AppMode.PRACTICE);
+    fetchNewQuestion(AppMode.PRACTICE);
+  };
+
+  const handleStartConceptPractice = () => {
+    if (!checkKey()) return;
+    setMode(AppMode.CONCEPT_PRACTICE);
+    fetchNewQuestion(AppMode.CONCEPT_PRACTICE);
+  };
+
+  const fetchNewQuestion = async (targetMode: AppMode = mode) => {
     if (!apiKey) {
       setError("API Key가 설정되지 않았습니다. 설정 메뉴에서 키를 입력해주세요.");
       return;
@@ -169,7 +181,12 @@ const App: React.FC = () => {
     setCurrentQuestion(null); 
     
     try {
-      const q = await generateQuestion(apiKey, selectedTopics);
+      let q: CppQuestion;
+      if (targetMode === AppMode.CONCEPT_PRACTICE) {
+        q = await generateBlankQuestion(apiKey, selectedTopics);
+      } else {
+        q = await generateQuestion(apiKey, selectedTopics);
+      }
       setCurrentQuestion(q);
     } catch (e: any) {
       console.error(e);
@@ -218,6 +235,9 @@ const App: React.FC = () => {
   // Filter topics for menu
   const filteredTopics = CPP_TOPICS.filter(t => t.toLowerCase().includes(topicSearch.toLowerCase()));
 
+  // Render Logic
+  const isPracticeMode = mode === AppMode.PRACTICE || mode === AppMode.CONCEPT_PRACTICE;
+
   return (
     <div className="min-h-screen flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8 bg-[#0f172a]">
       <div className="w-full max-w-3xl flex flex-col gap-4 md:gap-6">
@@ -257,23 +277,41 @@ const App: React.FC = () => {
         <main className="flex-1 w-full">
           {mode === AppMode.MENU && (
             <div className="flex flex-col gap-4 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-8 shadow-2xl text-center">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="w-6 h-6 md:w-8 md:h-8" />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Mode 1: Code Practice */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-8 shadow-2xl flex flex-col items-center text-center hover:border-blue-500/50 transition-colors">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mb-4">
+                    <Zap className="w-6 h-6 md:w-8 md:h-8" />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">실전 코드 연습</h2>
+                  <p className="text-sm text-slate-400 mb-6 flex-1">
+                    제시된 C++ 코드를 분석하고 유효성 및 실행 결과를 예측합니다.
+                  </p>
+                  <button 
+                    onClick={handleStartPractice}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                  >
+                    시작하기 <ArrowRight className="w-5 h-5" />
+                  </button>
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold text-white mb-2">무한 C++ 실전 연습</h2>
-                <p className="text-sm md:text-base text-slate-400 mb-6 max-w-lg mx-auto">
-                  Gemini AI가 생성하는 무제한의 C++ 문제를 통해 개념을 확실히 다지세요.<br className="hidden md:block"/>
-                  코드의 유효성을 판단하고 결과를 예측해보세요.
-                </p>
-                <button 
-                  onClick={handleStartPractice}
-                  className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-xl font-bold text-base md:text-lg transition-all transform active:scale-95 md:hover:scale-105 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto"
-                >
-                  실전 연습 시작
-                  <ArrowRight className="w-5 h-5" />
-                  {selectedTopics.length > 0 && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full ml-1 whitespace-nowrap">{selectedTopics.length}</span>}
-                </button>
+
+                {/* Mode 2: Concept Blank */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-8 shadow-2xl flex flex-col items-center text-center hover:border-indigo-500/50 transition-colors">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mb-4">
+                    <BrainCircuit className="w-6 h-6 md:w-8 md:h-8" />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">기본 개념 완성</h2>
+                  <p className="text-sm text-slate-400 mb-6 flex-1">
+                    C++ 핵심 이론의 빈칸을 채우며 키워드를 학습합니다.
+                  </p>
+                  <button 
+                    onClick={handleStartConceptPractice}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2"
+                  >
+                    시작하기 <ArrowRight className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Topic Selection */}
@@ -281,7 +319,7 @@ const App: React.FC = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 gap-3">
                   <div className="flex items-center gap-2">
                     <Filter className="w-5 h-5 text-indigo-400" />
-                    <h3 className="text-base md:text-lg font-bold text-white">시험 범위 <span className="text-xs font-normal text-slate-500">(미선택시 전체)</span></h3>
+                    <h3 className="text-base md:text-lg font-bold text-white">학습 주제 선택 <span className="text-xs font-normal text-slate-500">(미선택시 전체)</span></h3>
                   </div>
                   <div className="relative w-full md:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -321,7 +359,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {mode === AppMode.PRACTICE && (
+          {isPracticeMode && (
             <div className="flex flex-col gap-4 animate-in fade-in duration-300 w-full pb-10">
               <button onClick={() => setMode(AppMode.MENU)} className="text-slate-500 hover:text-slate-300 flex items-center gap-1 w-fit text-sm py-1">
                 ← 메뉴로 돌아가기
@@ -340,7 +378,9 @@ const App: React.FC = () => {
               {isLoading && !currentQuestion ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
                   <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-                  <p className="animate-pulse text-sm md:text-base">새로운 C++ 문제를 생성하고 있습니다...</p>
+                  <p className="animate-pulse text-sm md:text-base">
+                    {mode === AppMode.CONCEPT_PRACTICE ? "C++ 개념 문제를 생성하고 있습니다..." : "새로운 C++ 코드를 생성하고 있습니다..."}
+                  </p>
                 </div>
               ) : currentQuestion ? (
                 <>
@@ -348,25 +388,57 @@ const App: React.FC = () => {
                     <span className="inline-block w-fit px-2 py-1 rounded bg-slate-800 text-slate-400 text-xs font-mono">
                       {currentQuestion.topic}
                     </span>
-                    <h3 className="text-base md:text-xl font-semibold text-white leading-relaxed">
-                      {currentQuestion.questionText}
-                    </h3>
+                    
+                    {/* Render different style based on question type */}
+                    {currentQuestion.type === 'concept_blank' ? (
+                       <div className="bg-slate-900 p-6 md:p-8 rounded-xl border border-slate-800 shadow-inner">
+                          <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-white leading-relaxed text-center">
+                            {/* Updated split logic to handle full [    ] pattern with regex */}
+                            {currentQuestion.questionText.split(/\[\s*\]/g).map((part, i, arr) => (
+                              <React.Fragment key={i}>
+                                {part}
+                                {i < arr.length - 1 && (
+                                  <span className="inline-block min-w-[100px] border-b-4 border-indigo-500 mx-2 align-bottom h-8 md:h-10 animate-pulse bg-indigo-500/10"></span>
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </h3>
+                       </div>
+                    ) : (
+                      <>
+                        <h3 className="text-base md:text-xl font-semibold text-white leading-relaxed">
+                          {currentQuestion.questionText}
+                        </h3>
+                        <CodeBlock code={currentQuestion.code} />
+                      </>
+                    )}
                   </div>
-
-                  <CodeBlock code={currentQuestion.code} />
 
                   {!evaluation ? (
                     <div className="bg-slate-900 rounded-xl p-4 md:p-6 border border-slate-800 shadow-lg">
                       <label className="block text-sm font-medium text-slate-400 mb-2">
-                        답안 입력
+                        {currentQuestion.type === 'concept_blank' ? '빈칸에 들어갈 키워드' : '답안 입력'}
                       </label>
-                      <textarea 
-                        value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="실행 결과, 혹은 코드가 유효하지 않은 이유를 서술하세요."
-                        className="w-full h-32 md:h-40 bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none mb-4"
-                        style={{ fontSize: '16px' }} // Prevent iOS zoom
-                      />
+                      {currentQuestion.type === 'concept_blank' ? (
+                        <input
+                          type="text"
+                          value={userAnswer}
+                          onChange={(e) => setUserAnswer(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                          placeholder="정답 키워드를 입력하세요"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-lg text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors mb-4 text-center"
+                          autoFocus
+                        />
+                      ) : (
+                        <textarea 
+                          value={userAnswer}
+                          onChange={(e) => setUserAnswer(e.target.value)}
+                          placeholder="실행 결과, 혹은 코드가 유효하지 않은 이유를 서술하세요."
+                          className="w-full h-32 md:h-40 bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none mb-4"
+                          style={{ fontSize: '16px' }}
+                        />
+                      )}
+                      
                       <button 
                         onClick={handleSubmit}
                         disabled={isEvaluating || !userAnswer.trim()}
@@ -401,14 +473,14 @@ const App: React.FC = () => {
 
                         {!evaluation.isCorrect && (
                           <div className="bg-blue-900/20 p-3 md:p-4 rounded-lg border border-blue-500/20">
-                            <p className="text-xs md:text-sm text-blue-400 mb-1 font-bold">정답 해설</p>
+                            <p className="text-xs md:text-sm text-blue-400 mb-1 font-bold">정답</p>
                             <p className="text-slate-200 text-sm md:text-base">{evaluation.correctAnswerDetail}</p>
                           </div>
                         )}
                       </div>
 
                       <button 
-                        onClick={fetchNewQuestion}
+                        onClick={() => fetchNewQuestion()}
                         className="mt-6 w-full bg-slate-800 hover:bg-slate-700 text-white py-3 md:py-3.5 rounded-lg font-bold transition-colors flex justify-center items-center gap-2 active:scale-[0.98]"
                       >
                         다음 문제 풀기 <ArrowRight className="w-4 h-4" />
@@ -450,9 +522,11 @@ const App: React.FC = () => {
                       </div>
                       <div className="p-4 md:p-6">
                          <p className="text-base md:text-lg text-white font-medium mb-4">{mistake.questionText}</p>
-                         <div className="mb-4">
-                           <CodeBlock code={mistake.code} />
-                         </div>
+                         {mistake.code && (
+                           <div className="mb-4">
+                             <CodeBlock code={mistake.code} />
+                           </div>
+                         )}
                          <div className="grid md:grid-cols-2 gap-4">
                             <div className="bg-red-900/10 p-3 rounded border border-red-500/10">
                               <p className="text-xs text-red-400 font-bold mb-1">내 오답</p>
