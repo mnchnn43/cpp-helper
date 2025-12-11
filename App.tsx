@@ -43,8 +43,6 @@ const App: React.FC = () => {
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) {
       setApiKey(storedKey);
-      // Optional: Check validity on load or just trust storage until use
-      // We do nothing here, but if user tries to start practice, we might re-check if needed.
     }
 
     const storedName = localStorage.getItem('cpp_username');
@@ -67,10 +65,6 @@ const App: React.FC = () => {
     try {
       const valid = await validateApiKey(apiKey);
       setIsKeyValid(valid);
-      if (valid) {
-        // We do NOT save automatically here anymore, user must click Save
-        // but we can give feedback
-      }
     } catch (e) {
       setIsKeyValid(false);
     } finally {
@@ -80,7 +74,6 @@ const App: React.FC = () => {
 
   const handleSaveSettings = () => {
     if (isKeyValid !== true) {
-      // This path shouldn't be reachable via button click due to 'disabled' attribute, but defensive coding:
       alert("API 키 테스트를 통과해야 저장할 수 있습니다.");
       return;
     }
@@ -116,7 +109,6 @@ const App: React.FC = () => {
         if (e.target?.result) {
           try {
             const parsed = JSON.parse(e.target.result as string);
-            // Basic validation
             if (Array.isArray(parsed)) {
               setMistakes(parsed);
               localStorage.setItem('cpp_mistakes', JSON.stringify(parsed));
@@ -156,7 +148,6 @@ const App: React.FC = () => {
       setShowSettings(true);
       return;
     }
-    // Simple format check before proceeding
     if (!apiKey.startsWith("AIza")) {
       alert("API Key 형식이 올바르지 않습니다. 설정을 확인해주세요.");
       setShowSettings(true);
@@ -228,11 +219,11 @@ const App: React.FC = () => {
   const filteredTopics = CPP_TOPICS.filter(t => t.toLowerCase().includes(topicSearch.toLowerCase()));
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-3 md:p-6 lg:p-8 bg-[#0f172a]">
-      <div className="w-full max-w-4xl flex flex-col gap-4 md:gap-6">
+    <div className="min-h-screen flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8 bg-[#0f172a]">
+      <div className="w-full max-w-3xl flex flex-col gap-4 md:gap-6">
         
         {/* Header - Mobile Friendly */}
-        <header className="flex justify-between items-center mb-2 md:mb-4 sticky top-0 bg-[#0f172a]/90 backdrop-blur-sm z-20 py-2">
+        <header className="flex justify-between items-center mb-1 md:mb-4 sticky top-0 bg-[#0f172a]/90 backdrop-blur-sm z-20 py-2">
           <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
             <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent cursor-pointer truncate" onClick={() => setMode(AppMode.MENU)}>
               C++ 시험준비
@@ -242,7 +233,7 @@ const App: React.FC = () => {
           <div className="flex gap-2 shrink-0">
             <button 
               onClick={() => setMode(AppMode.REVIEW)} 
-              className="p-2 md:p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors relative"
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors relative"
               title="오답 노트"
             >
               <BookOpen className="w-5 h-5 md:w-6 md:h-6" />
@@ -254,7 +245,7 @@ const App: React.FC = () => {
             </button>
             <button 
               onClick={() => setShowSettings(true)} 
-              className="p-2 md:p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
               title="설정"
             >
               <Settings className="w-5 h-5 md:w-6 md:h-6" />
@@ -265,19 +256,19 @@ const App: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 w-full">
           {mode === AppMode.MENU && (
-            <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl text-center">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
+            <div className="flex flex-col gap-4 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-8 shadow-2xl text-center">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-500/10 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Zap className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold text-white mb-2">무한 C++ 실전 연습</h2>
-                <p className="text-sm md:text-base text-slate-400 mb-6 md:mb-8 max-w-lg mx-auto">
+                <p className="text-sm md:text-base text-slate-400 mb-6 max-w-lg mx-auto">
                   Gemini AI가 생성하는 무제한의 C++ 문제를 통해 개념을 확실히 다지세요.<br className="hidden md:block"/>
-                  코드를 분석하고, 실행 결과를 예측하며 실력을 키울 수 있습니다.
+                  코드의 유효성을 판단하고 결과를 예측해보세요.
                 </p>
                 <button 
                   onClick={handleStartPractice}
-                  className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all transform active:scale-95 md:hover:scale-105 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto"
+                  className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-xl font-bold text-base md:text-lg transition-all transform active:scale-95 md:hover:scale-105 shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mx-auto"
                 >
                   실전 연습 시작
                   <ArrowRight className="w-5 h-5" />
@@ -287,10 +278,10 @@ const App: React.FC = () => {
 
               {/* Topic Selection */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-6 shadow-xl">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 gap-3">
                   <div className="flex items-center gap-2">
                     <Filter className="w-5 h-5 text-indigo-400" />
-                    <h3 className="text-base md:text-lg font-bold text-white">시험 범위 선택 <span className="text-xs font-normal text-slate-500">(선택 안 함 = 전체)</span></h3>
+                    <h3 className="text-base md:text-lg font-bold text-white">시험 범위 <span className="text-xs font-normal text-slate-500">(미선택시 전체)</span></h3>
                   </div>
                   <div className="relative w-full md:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -299,19 +290,19 @@ const App: React.FC = () => {
                       placeholder="주제 검색..." 
                       value={topicSearch}
                       onChange={(e) => setTopicSearch(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-sm md:text-base text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
                     />
                   </div>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 max-h-60 md:max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                <div className="flex flex-wrap gap-2 max-h-56 md:max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                   {filteredTopics.map((topic) => {
                     const isSelected = selectedTopics.includes(topic);
                     return (
                       <button
                         key={topic}
                         onClick={() => toggleTopic(topic)}
-                        className={`px-3 py-2 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition-all duration-200 border flex-shrink-0 ${
+                        className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition-all duration-200 border flex-shrink-0 text-left ${
                           isSelected 
                             ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-900/20' 
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-300'
@@ -331,8 +322,8 @@ const App: React.FC = () => {
           )}
 
           {mode === AppMode.PRACTICE && (
-            <div className="flex flex-col gap-4 md:gap-6 animate-in fade-in duration-300 w-full">
-              <button onClick={() => setMode(AppMode.MENU)} className="text-slate-500 hover:text-slate-300 flex items-center gap-1 w-fit text-sm md:text-base py-1">
+            <div className="flex flex-col gap-4 animate-in fade-in duration-300 w-full pb-10">
+              <button onClick={() => setMode(AppMode.MENU)} className="text-slate-500 hover:text-slate-300 flex items-center gap-1 w-fit text-sm py-1">
                 ← 메뉴로 돌아가기
               </button>
 
@@ -349,7 +340,7 @@ const App: React.FC = () => {
               {isLoading && !currentQuestion ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
                   <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-                  <p className="animate-pulse">새로운 C++ 문제를 생성하고 있습니다...</p>
+                  <p className="animate-pulse text-sm md:text-base">새로운 C++ 문제를 생성하고 있습니다...</p>
                 </div>
               ) : currentQuestion ? (
                 <>
@@ -357,7 +348,7 @@ const App: React.FC = () => {
                     <span className="inline-block w-fit px-2 py-1 rounded bg-slate-800 text-slate-400 text-xs font-mono">
                       {currentQuestion.topic}
                     </span>
-                    <h3 className="text-lg md:text-xl font-semibold text-white leading-relaxed">
+                    <h3 className="text-base md:text-xl font-semibold text-white leading-relaxed">
                       {currentQuestion.questionText}
                     </h3>
                   </div>
@@ -372,14 +363,14 @@ const App: React.FC = () => {
                       <textarea 
                         value={userAnswer}
                         onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="실행 결과, 혹은 코드가 잘못된 이유를 서술하세요."
-                        className="w-full h-40 bg-slate-950 border border-slate-700 rounded-lg p-3 md:p-4 text-base text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none mb-4"
+                        placeholder="실행 결과, 혹은 코드가 유효하지 않은 이유를 서술하세요."
+                        className="w-full h-32 md:h-40 bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm md:text-base text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none mb-4"
                         style={{ fontSize: '16px' }} // Prevent iOS zoom
                       />
                       <button 
                         onClick={handleSubmit}
                         disabled={isEvaluating || !userAnswer.trim()}
-                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white py-3.5 rounded-lg font-bold transition-colors flex justify-center items-center gap-2 active:scale-[0.98]"
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white py-3 md:py-3.5 rounded-lg font-bold transition-colors flex justify-center items-center gap-2 active:scale-[0.98]"
                       >
                         {isEvaluating ? <Loader2 className="w-5 h-5 animate-spin" /> : "제출 및 채점"}
                       </button>
@@ -388,9 +379,9 @@ const App: React.FC = () => {
                     <div className={`rounded-xl p-4 md:p-6 border shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-500 ${evaluation.isCorrect ? 'bg-green-900/10 border-green-500/20' : 'bg-red-900/10 border-red-500/20'}`}>
                       <div className="flex items-center gap-3 mb-4">
                         {evaluation.isCorrect ? (
-                          <CheckCircle className="w-7 h-7 md:w-8 md:h-8 text-green-500 flex-shrink-0" />
+                          <CheckCircle className="w-6 h-6 md:w-8 md:h-8 text-green-500 flex-shrink-0" />
                         ) : (
-                          <XCircle className="w-7 h-7 md:w-8 md:h-8 text-red-500 flex-shrink-0" />
+                          <XCircle className="w-6 h-6 md:w-8 md:h-8 text-red-500 flex-shrink-0" />
                         )}
                         <h3 className={`text-lg md:text-xl font-bold ${evaluation.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
                           {evaluation.isCorrect ? '정답입니다!' : '오답입니다.'}
@@ -398,19 +389,19 @@ const App: React.FC = () => {
                       </div>
                       
                       <div className="space-y-4">
-                        <div className="bg-slate-950/50 p-4 rounded-lg">
-                          <p className="text-sm text-slate-400 mb-1 font-bold">내 답안</p>
+                        <div className="bg-slate-950/50 p-3 md:p-4 rounded-lg">
+                          <p className="text-xs md:text-sm text-slate-400 mb-1 font-bold">내 답안</p>
                           <p className="text-slate-200 text-sm md:text-base">{userAnswer}</p>
                         </div>
                         
                         <div>
-                          <p className="text-sm text-slate-400 mb-1 font-bold">피드백</p>
+                          <p className="text-xs md:text-sm text-slate-400 mb-1 font-bold">피드백</p>
                           <p className="text-slate-200 leading-relaxed whitespace-pre-wrap text-sm md:text-base">{evaluation.feedback}</p>
                         </div>
 
                         {!evaluation.isCorrect && (
-                          <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/20">
-                            <p className="text-sm text-blue-400 mb-1 font-bold">정답 해설</p>
+                          <div className="bg-blue-900/20 p-3 md:p-4 rounded-lg border border-blue-500/20">
+                            <p className="text-xs md:text-sm text-blue-400 mb-1 font-bold">정답 해설</p>
                             <p className="text-slate-200 text-sm md:text-base">{evaluation.correctAnswerDetail}</p>
                           </div>
                         )}
@@ -418,7 +409,7 @@ const App: React.FC = () => {
 
                       <button 
                         onClick={fetchNewQuestion}
-                        className="mt-6 w-full bg-slate-800 hover:bg-slate-700 text-white py-3.5 rounded-lg font-bold transition-colors flex justify-center items-center gap-2 active:scale-[0.98]"
+                        className="mt-6 w-full bg-slate-800 hover:bg-slate-700 text-white py-3 md:py-3.5 rounded-lg font-bold transition-colors flex justify-center items-center gap-2 active:scale-[0.98]"
                       >
                         다음 문제 풀기 <ArrowRight className="w-4 h-4" />
                       </button>
@@ -430,9 +421,9 @@ const App: React.FC = () => {
           )}
 
           {mode === AppMode.REVIEW && (
-            <div className="flex flex-col gap-4 md:gap-6 animate-in fade-in duration-300">
+            <div className="flex flex-col gap-4 md:gap-6 animate-in fade-in duration-300 pb-10">
                <div className="flex justify-between items-center">
-                <button onClick={() => setMode(AppMode.MENU)} className="text-slate-500 hover:text-slate-300 flex items-center gap-1 py-1">
+                <button onClick={() => setMode(AppMode.MENU)} className="text-slate-500 hover:text-slate-300 flex items-center gap-1 py-1 text-sm md:text-base">
                   ← 메뉴로 돌아가기
                 </button>
                 <h2 className="text-xl md:text-2xl font-bold text-white">오답 노트</h2>
@@ -440,9 +431,9 @@ const App: React.FC = () => {
 
               {mistakes.length === 0 ? (
                 <div className="text-center py-20 text-slate-500 bg-slate-900 rounded-2xl border border-slate-800">
-                  <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <BookOpen className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-4 opacity-50" />
                   <p>아직 저장된 오답이 없습니다.</p>
-                  <p className="text-sm mt-2">틀린 문제는 자동으로 이곳에 저장됩니다.</p>
+                  <p className="text-xs md:text-sm mt-2">틀린 문제는 자동으로 이곳에 저장됩니다.</p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:gap-6">
@@ -451,7 +442,7 @@ const App: React.FC = () => {
                       <div className="p-3 md:p-4 bg-slate-800/50 flex justify-between items-center border-b border-slate-800">
                         <span className="text-xs text-slate-400 font-mono">{new Date(mistake.timestamp).toLocaleDateString()}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] md:text-xs bg-slate-700 px-2 py-1 rounded text-slate-300 truncate max-w-[100px] md:max-w-none">{mistake.topic}</span>
+                          <span className="text-[10px] md:text-xs bg-slate-700 px-2 py-1 rounded text-slate-300 truncate max-w-[80px] md:max-w-[120px]">{mistake.topic}</span>
                           <button onClick={() => removeMistake(mistake.id)} className="text-slate-500 hover:text-red-400 p-2">
                             <Trash2 className="w-4 h-4" />
                           </button>

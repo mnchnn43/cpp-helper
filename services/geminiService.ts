@@ -98,7 +98,6 @@ export const validateApiKey = async (apiKey: string): Promise<boolean> => {
   try {
     const ai = new GoogleGenAI({ apiKey });
     // Use generateContent with minimal tokens to verify key and model access
-    // countTokens can sometimes 404 on new models or specific endpoints, generateContent is most reliable check
     await ai.models.generateContent({
       model: MODEL_NAME,
       contents: { parts: [{ text: "Test" }] },
@@ -129,108 +128,106 @@ export const generateQuestion = async (apiKey: string, selectedTopics: string[] 
   const systemInstruction = `
     당신은 C++ 전문 교수입니다. 당신의 목표는 무한한 C++ 실전 연습 문제를 한국어로 생성하는 것입니다.
     
-    코드 생성 규칙:
-    1. 코드는 짧지만 독립적으로 실행 가능해야 합니다.
-    2. 헤더 파일 누락과 같은 단순한 문법 오류를 묻는 문제가 아니라면, 항상 #include <iostream>과 완전한 'int main() { ... }' 블록을 포함하세요.
-    3. '올바르지 않은 코드'(컴파일 에러, 런타임 에러, 논리적 오류)를 생성할 수 있습니다.
-    4. 다음 심화 주제에 집중하세요: ${randomTopic}.
-    5. 다양성 확보: "출력 결과는 무엇인가?", "이 코드는 유효한가?", "어떤 개념이 사용되었는가?" 등을 적절히 섞어서 출제하세요.
-    6. 모든 질문과 설명은 한국어로 작성되어야 합니다.
-    7. 중요: 코드 내에 힌트나 정답을 암시하는 주석을 절대 달지 마세요.
-    8. **매우 중요**: 질문 텍스트(questionText)에 해당 코드가 올바른지 틀린지 절대 미리 알려주지 마세요.
-       - 나쁜 예: "이 코드의 컴파일 에러 원인은 무엇인가요?" (에러가 있다는 것을 알려줌)
-       - 좋은 예: "이 코드의 실행 결과를 예측하거나, 문제가 있다면 설명하세요.", "이 코드는 문법적으로 올바른가요?"
+    현재 선택된 주제: ${randomTopic}
 
-    시험 범위 및 제약 사항:
-    - **<vector> 헤더 및 std::vector는 시험 범위 밖이므로 절대 사용하지 마세요.**
-    - **std::cerr 사용을 금지합니다. 모든 출력은 std::cout을 사용하세요.**
-    - 배열이나 객체 배열을 다룰 때, 만약 경계 검사(Bound Check) 기능이 필요하다면 std::vector 대신 아래와 같은 커스텀 클래스 형태를 참고하여 구현된 코드를 제시하세요 (문제 의도에 맞게 필요시 수정 가능):
-      \`\`\`cpp
-      class BCA {
-      private:
-        int* arr;
-        int arrlen;
-      public:
-        BCA(int len) : arrlen(len) { arr = new int[len]; }
-        int& operator[] (int idx) {
-          if(idx<0 || idx>= arrlen) { exit(1); }
-          return arr[idx];
-        }
-        ~BCA(){ delete [] arr; }
-      };
-      \`\`\`
+    주제별 특별 지침:
+    1. **연산자 오버로딩 (Operator Overloading)**: 
+       - 단순 산술 연산자(+) 외에 까다로운 연산자들을 반드시 포함하세요.
+       - **필수 포함 대상**: 
+         * 배열 첨자 연산자 'operator[]' (const 및 비-const 버전 구분)
+         * 메모리 할당/해제 'operator new', 'operator delete' (전역 및 클래스 멤버)
+         * 포인터 접근 'operator->', 역참조 'operator*'
+         * 함수 호출 'operator()'
+         * 대입 'operator=' (깊은 복사 문제)
+    
+    2. **템플릿 (Templates)**: 
+       - 단순 제네릭 타입 외에 구체적인 문법 사항을 다루세요.
+       - **필수 포함 대상**:
+         * 템플릿 전면 특수화 (Template Specialization): 'template<> class A<int> { ... }' 형태
+         * 부분 특수화 (Partial Specialization)
+         * 비타입 템플릿 매개변수 (Non-type template parameters)
+         * 함수 템플릿 오버로딩 우선순위
+
+    3. **코드 생성 및 질문 규칙**:
+       - **질문 유형 우선순위**: 단순 실행 결과(output) 예측보다는 **"이 코드는 유효한가?(Validity)"** 유형을 **70% 이상** 출제하세요.
+       - **유효성 질문 예시**: "이 코드는 컴파일 되는가?", "런타임 에러(Segmentation Fault 등)가 발생하는가?", "메모리 누수가 발생하는가?"
+       - 코드는 문법적으로 미묘하게 틀리거나(컴파일 에러), 실행 시 위험한(Undefined Behavior) 함정을 자주 포함해야 합니다.
+       - 헤더 파일 누락과 같은 단순 실수가 아닌, 논리적/구조적 결함을 다루세요. (단, 실행 가능한 코드라면 #include <iostream>과 main()은 필수)
+       - 모든 질문과 설명은 **한국어**로 작성하세요.
+       - **[매우 중요] 코드 내에 주석(//, /**/)을 절대 포함하지 마세요.** 실제 시험 문제지처럼 깨끗한 코드를 제공해야 합니다.
+       - **[매우 중요] 코드는 30줄 이내로 짧고 간결하게 작성하세요.** 불필요하게 긴 코드는 피하고 핵심 함정에 집중하세요.
+       - 정답을 질문 텍스트에 노출하지 마세요.
+
+    제약 사항:
+    - **<vector> 헤더 및 std::vector 금지.** (C-style 배열이나 커스텀 클래스 활용)
+    - std::cerr 금지, std::cout 사용.
   `;
 
   try {
-    const response = await generateContentWithRetry(ai.models, {
+    const result = await generateContentWithRetry(ai.models, {
       model: MODEL_NAME,
-      contents: `Generate a unique C++ question about: ${randomTopic}. The question text must be neutral and in Korean. Do NOT use vector header. Do NOT use cerr.`,
+      contents: { parts: [{ text: "Generate a new advanced C++ question based on the system instructions." }] },
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: questionSchema,
-        temperature: 0.8, // Slight creativity for code variety
+        temperature: 1.2, // Higher creativity for varied code scenarios
       },
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
+    const text = result.text;
+    if (!text) throw new Error("No text returned from Gemini API");
+
+    const parsed = JSON.parse(text);
     
-    const question = JSON.parse(text) as CppQuestion;
+    // Ensure comments are stripped and code is clean
+    if (parsed.code) {
+      parsed.code = stripComments(parsed.code);
+    }
     
-    // Post-processing: Ensure no comments exist in the code to prevent leaking hints
-    question.code = stripComments(question.code);
-    
-    return question;
+    return parsed as CppQuestion;
   } catch (error) {
-    console.error("Gemini Generation Error:", error);
+    console.error("GenAI Error:", error);
     throw error;
   }
 };
 
-export const evaluateAnswer = async (
-  apiKey: string,
-  question: CppQuestion,
-  userAnswer: string
-): Promise<EvaluationResult> => {
+export const evaluateAnswer = async (apiKey: string, question: CppQuestion, userAnswer: string): Promise<EvaluationResult> => {
   if (!apiKey) throw new Error("API Key is missing");
-  if (!isValidApiKeyFormat(apiKey)) throw new Error("API Key format is invalid");
-  
   const ai = new GoogleGenAI({ apiKey });
 
-  const systemInstruction = `
-    당신은 엄격하지만 친절한 C++ 튜터입니다.
-    사용자가 제출한 C++ 문제에 대한 답을 평가하세요.
-    
-    제공된 코드:
+  const prompt = `
+    Question Code:
     ${question.code}
-    
-    질문:
+
+    Question:
     ${question.questionText}
-    
-    주제:
-    ${question.topic}
-    
-    모든 피드백과 설명은 한국어로 제공하세요.
-    사용자가 문제의 핵심(유효성 여부, 출력값 등)을 정확히 파악했는지 판단하세요.
+
+    User's Answer:
+    ${userAnswer}
+
+    Evaluate the user's answer. 
+    1. Determine if the user correctly identified the validity (valid/invalid), the output (if valid), or the core concept.
+    2. Provide detailed feedback in Korean explaining the logic, why it compiles or doesn't, and any caveats (UB, memory leaks, etc.).
+    3. Provide the definitive Correct Answer.
   `;
 
   try {
-    const response = await generateContentWithRetry(ai.models, {
+    const result = await generateContentWithRetry(ai.models, {
       model: MODEL_NAME,
-      contents: `User Answer: "${userAnswer}". Evaluate this answer in Korean. Provide detailed feedback explaining the specific C++ mechanics (stack, heap, vtable, compiler rules, etc.) involved.`,
+      contents: { parts: [{ text: prompt }] },
       config: {
-        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: evaluationSchema,
       },
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
+    const text = result.text;
+    if (!text) throw new Error("No text returned from Gemini API");
+
     return JSON.parse(text) as EvaluationResult;
   } catch (error) {
-    console.error("Gemini Evaluation Error:", error);
+    console.error("Evaluation Error:", error);
     throw error;
   }
 };
